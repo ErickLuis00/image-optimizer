@@ -1,5 +1,5 @@
 {
-    "name": "image-optimizer",
+    "name": "@erickluis00/image-optimizer",
     "version": "1.0.0",
     "description": "Image optimization for React using Hono as backend and Sharp as image processor",
     "main": "./dist/index.js",
