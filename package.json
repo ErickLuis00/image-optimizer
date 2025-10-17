@@ -23,7 +23,8 @@
     "scripts": {
         "build": "tsup src/index.ts src/server.ts --format cjs,esm --dts --external react --external hono",
         "dev": "tsup src/index.ts src/server.ts --format cjs,esm --dts --watch --external react --external hono",
-        "prepublishOnly": "pnpm build"
+        "prepublishOnly": "pnpm build",
+        "release": "pnpm publish --access public"
     },
     "keywords": [
         "vike",
