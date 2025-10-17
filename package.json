@@ -34,8 +34,12 @@
         "image-component",
         "image-middleware"
     ],
-    "author": "",
+    "author": "erickluis00",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ErickLuis00/image-optimizer.git"
+    },
     "peerDependencies": {
         "react": "^18.0.0",
         "hono": "^4.0.0"
