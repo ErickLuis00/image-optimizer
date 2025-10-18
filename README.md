@@ -1,21 +1,18 @@
 # image-optimizer
 
-Next.js-like Image component with automatic optimization using Sharp.
+Next.js-like Image component with automatic optimization using Sharp. React and Hono friendly (currently)
 
 ## Features
 
 - ✅ Automatic image optimization with Sharp
 - ✅ Server-side caching
-- ✅ External URLs and local paths support
+- ✅ External URLs and local images support
 - ✅ Lazy loading by default
 - ✅ Smooth loading transitions
 - ✅ Error handling with fallback UI
 - ✅ TypeScript support
 - ✅ SSR compatible
 - ✅ Zero dependencies (except Sharp)
-- ✅ Framework-agnostic (no Tailwind required)
-- 🔒 Path traversal protection
-- ⚙️ Fully configurable middleware
 
 ## Installation
 
@@ -29,7 +26,7 @@ yarn add image-optimizer
 
 > **Important:** This package has two entry points:
 > - `image-optimizer` - Client-safe Image component (use in React components)
-> - `image-optimizer/server` - Server-only middleware (use in Node.js server setup)
+> - `image-optimizer/server` - Server-only middleware (use in Node.js server setup using HONO)
 
 ## Usage
 
@@ -47,14 +44,11 @@ imageMiddleware(app)
 
 // Or with custom configuration
 const imageMiddleware = createImageMiddleware({
-  path: '/img',                    // Custom endpoint path (default: '/image')
+  path: '/image',                    // Custom endpoint path (default: '/image')
   cacheControl: 'public, max-age=31536000',  // Custom cache header
   headers: {                       // Additional headers
     'X-Custom-Header': 'value'
   },
-  projectRoot: process.cwd(),      // Project root directory
-  assetsDir: './public/images',    // Assets directory
-  cacheDir: './.cache/images'      // Cache directory
 })
 imageMiddleware(app)
 ```
@@ -77,7 +71,7 @@ export function MyPage() {
 
       {/* Local path */}
       <Image 
-        src="/images/local.jpg" 
+        src="/images/local.jpg"
         alt="Local" 
         width={400} 
         height={300} 
@@ -142,16 +136,7 @@ export function MyPage() {
 | `path` | `string` | `'/image'` | Endpoint path for image optimization |
 | `cacheControl` | `string` | `'public, max-age=31536000, immutable'` | Cache-Control header |
 | `headers` | `Record<string, string>` | `{}` | Additional custom headers |
-| `projectRoot` | `string` | `process.cwd()` | Project root directory |
-| `assetsDir` | `string` | `path.join(projectRoot, 'assets')` | Base directory for local images |
-| `cacheDir` | `string` | `path.join(projectRoot, '.cache/sharp')` | Cache directory |
 
-## Security
-
-- **Path Traversal Protection**: Local paths are sandboxed to the assets directory
-- **No Path Leakage**: Server paths are never exposed to the client
-- **Configurable Base**: Set custom assets directory via configuration
-- **Attacks Blocked**: Prevents `../../etc/passwd` style attacks
 
 ## Examples
 
@@ -177,16 +162,6 @@ const imageMiddleware = createImageMiddleware({
 imageMiddleware(app)
 ```
 
-### Custom Directories
-
-```typescript
-const imageMiddleware = createImageMiddleware({
-  projectRoot: '/app',
-  assetsDir: '/app/public/images',
-  cacheDir: '/tmp/image-cache'
-})
-imageMiddleware(app)
-```
 
 ## License
 
