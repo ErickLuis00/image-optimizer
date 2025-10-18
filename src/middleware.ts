@@ -99,9 +99,11 @@ export function createImageMiddleware(config: ImageMiddlewareConfig = {}) {
   let imagesLocalDir: string | undefined
   let imagesLocalDirDetected = false
 
-  if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, { recursive: true })
+  // Remove existing cache and create fresh
+  if (fs.existsSync(cacheDir)) {
+    fs.rmSync(cacheDir, { recursive: true, force: true })
   }
+  fs.mkdirSync(cacheDir, { recursive: true })
 
   return (app: Hono) => {
     app.get(routePath, async (c) => {
@@ -169,7 +171,31 @@ export function createImageMiddleware(config: ImageMiddlewareConfig = {}) {
         let image = sharp(imageBuffer)
 
         if (width || height) {
-          image = image.resize(width, height, {
+          // Get image metadata to determine aspect ratio
+          const metadata = await image.metadata()
+          const originalWidth = metadata.width || 0
+          const originalHeight = metadata.height || 0
+
+          let resizeWidth = width
+          let resizeHeight = height
+
+          // If both dimensions are provided, calculate which dimension to use
+          // based on aspect ratio to prevent images from becoming too small
+          if (width && height && originalWidth && originalHeight) {
+            const originalAspectRatio = originalWidth / originalHeight
+            const targetAspectRatio = width / height
+
+            // If original is more portrait (taller) than target
+            if (originalAspectRatio < targetAspectRatio) {
+              // Use width as constraint, let height be auto
+              resizeHeight = undefined
+            } else {
+              // Use height as constraint, let width be auto
+              resizeWidth = undefined
+            }
+          }
+
+          image = image.resize(resizeWidth, resizeHeight, {
             fit: 'inside',
             withoutEnlargement: true,
           })
