@@ -39,20 +39,8 @@ export interface ImageMiddlewareConfig {
   headers?: Record<string, string>
 
   /**
-   * Project root directory (for Vite asset imports)
-   * @default process.cwd()
-   */
-  projectRoot?: string
-
-  /**
-   * Base directory for local images (security: prevents path traversal)
-   * @default path.join(projectRoot, 'assets')
-   */
-  assetsDir?: string
-
-  /**
    * Cache directory for optimized images
-   * @default path.join(projectRoot, '.cache/sharp')
+   * @default path.join(process.cwd(), '.cache/sharp')
    */
   cacheDir?: string
 }

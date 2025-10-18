@@ -3,6 +3,7 @@ import path from 'path'
 import fs from 'fs'
 import sharp from 'sharp'
 import crypto from 'crypto'
+import { execSync } from 'child_process'
 import type { ImageMiddlewareConfig } from './types'
 
 function generateCacheKey(
@@ -23,35 +24,64 @@ function isUrl(source: string): boolean {
 async function fetchExternalImage(url: string): Promise<Buffer> {
   const response = await fetch(url)
   if (!response.ok) {
-    throw new Error(`Failed to fetch image: ${response.statusText}`)
+    throw new Error(`Failed to fetch image: ${response.statusText} ${response.status}`)
   }
   const arrayBuffer = await response.arrayBuffer()
   return Buffer.from(arrayBuffer)
 }
 
-function resolveLocalImagePath(
-  relativePath: string,
-  projectRoot: string,
-  assetsDir: string
-): string | null {
-  const normalizedPath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath
+// Works with any framework.
+// DO NOT WORK IN EDGE RUNTIME AS REQUIRES SHELL COMMANDS AND FS.
+function detectImagesLocalDir(srcPath: string): string | null {
+  try {
+    const shellCommand = `
+      input="${srcPath}"
+      dir="$PWD"
+      while [[ "$dir" != "/" ]]; do
+        result=$(find "$dir" -path "*$(dirname "$input")*" -name "$(basename "$input")" 2>/dev/null)
+        [[ -n "$result" ]] && echo "$result" && break
+        dir=$(dirname "$dir")
+      done
+    `
 
-  if (normalizedPath.startsWith('assets/')) {
-    const fullPath = path.join(projectRoot, normalizedPath)
-    const resolvedPath = path.resolve(fullPath)
+    const result = execSync(shellCommand, {
+      shell: '/bin/bash',
+      encoding: 'utf-8',
+      timeout: 5000
+    }).trim()
 
-    const projectAssetsDir = path.resolve(projectRoot, 'assets')
-    if (!resolvedPath.startsWith(projectAssetsDir)) {
+    if (!result) {
       return null
     }
 
-    return resolvedPath
-  }
+    // Extract the parent directory of /assets from the found path
+    // Example: /path/to/dist/client/assets/static/file.png + src=/assets/static/file.png
+    // Result: /path/to/dist/client
+    const normalizedSrc = srcPath.startsWith('/') ? srcPath : `/${srcPath}`
+    const srcIndex = result.indexOf(normalizedSrc)
 
-  const fullPath = path.join(assetsDir, normalizedPath)
+    if (srcIndex !== -1) {
+      return result.substring(0, srcIndex)
+    }
+
+    return null
+  } catch (error) {
+    console.error('Failed to detect images local directory:', error)
+    return null
+  }
+}
+
+function resolveLocalImagePath(
+  relativePath: string,
+  imagesLocalDir: string
+): string | null {
+  // Simply join imagesLocalDir with the src path
+  const normalizedPath = relativePath.startsWith('/') ? relativePath : `/${relativePath}`
+  const fullPath = path.join(imagesLocalDir, normalizedPath)
   const resolvedPath = path.resolve(fullPath)
 
-  if (!resolvedPath.startsWith(path.resolve(assetsDir))) {
+  // Security check: ensure resolved path starts with imagesLocalDir
+  if (!resolvedPath.startsWith(path.resolve(imagesLocalDir))) {
     return null
   }
 
@@ -63,14 +93,11 @@ export function createImageMiddleware(config: ImageMiddlewareConfig = {}) {
     path: routePath = '/image',
     cacheControl = 'public, max-age=31536000, immutable',
     headers = {},
-    projectRoot = process.cwd(),
-    assetsDir = path.join(process.cwd(), 'assets'),
     cacheDir = path.join(process.cwd(), '.cache/sharp'),
   } = config
 
-  if (!fs.existsSync(assetsDir)) {
-    fs.mkdirSync(assetsDir, { recursive: true })
-  }
+  let imagesLocalDir: string | undefined
+  let imagesLocalDirDetected = false
 
   if (!fs.existsSync(cacheDir)) {
     fs.mkdirSync(cacheDir, { recursive: true })
@@ -107,7 +134,24 @@ export function createImageMiddleware(config: ImageMiddlewareConfig = {}) {
         if (isUrl(src)) {
           imageBuffer = await fetchExternalImage(src)
         } else {
-          const resolvedPath = resolveLocalImagePath(src, projectRoot, assetsDir)
+          // Auto-detect imagesLocalDir on first request
+          if (!imagesLocalDirDetected) {
+            const detected = detectImagesLocalDir(src)
+            if (detected) {
+              imagesLocalDir = detected
+              imagesLocalDirDetected = true
+              console.log(`Images local directory auto-detected: ${imagesLocalDir}`)
+            } else {
+              console.warn(`Failed to auto-detect images local directory for: ${src}`)
+              imagesLocalDirDetected = true // Don't try again
+            }
+          }
+
+          if (!imagesLocalDir) {
+            return c.text('Failed to detect images directory. Image not found.', 404)
+          }
+
+          const resolvedPath = resolveLocalImagePath(src, imagesLocalDir)
 
           if (!resolvedPath) {
             return c.text('Invalid image path (security: path traversal blocked)', 403)
