@@ -106,7 +106,9 @@ export function createImageMiddleware(config: ImageMiddlewareConfig = {}) {
   return (app: Hono) => {
     app.get(routePath, async (c) => {
       try {
-        const src = c.req.query('src')
+        // Remove any existing query parameters from src only for local URLs
+        const rawSrc = c.req.query('src')
+        const src = rawSrc ? (isUrl(rawSrc) ? rawSrc : rawSrc.split('?')[0]) : undefined
         const width = Number(c.req.query('width')) || undefined
         const height = Number(c.req.query('height')) || undefined
         const quality = Number(c.req.query('quality')) || 80

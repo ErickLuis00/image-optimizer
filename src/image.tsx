@@ -12,7 +12,10 @@ function buildImageUrl(
 ): string {
     const params = new URLSearchParams()
 
-    params.append('src', src)
+    // Remove any existing query parameters from src only for local URLs
+    const isHttpUrl = src.startsWith('http://') || src.startsWith('https://')
+    const cleanSrc = isHttpUrl ? src : src.split('?')[0]
+    params.append('src', cleanSrc)
 
     if (width) params.append('width', width.toString())
     if (height) params.append('height', height.toString())
