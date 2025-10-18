@@ -45,7 +45,10 @@ export function Image({
     const [isMounted, setIsMounted] = useState(false)
     const imgRef = useRef<HTMLImageElement>(null)
 
-    const optimizedSrc = buildImageUrl(src, width, height, quality, format)
+    const isHttpUrl = src.startsWith('http://') || src.startsWith('https://')
+    const isLocalPath = !src.includes(':') // No protocol means it's a local path
+    const shouldOptimize = isHttpUrl || isLocalPath
+    const optimizedSrc = shouldOptimize ? buildImageUrl(src, width, height, quality, format) : src
 
     useEffect(() => {
         setIsMounted(true)
